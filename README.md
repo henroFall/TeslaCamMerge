@@ -2,12 +2,18 @@
 
 ## Contents
 
+* [Prelude](https://github.com/ppamidimarri/TeslaCamMerge#prelude)
 * [Introduction](https://github.com/ppamidimarri/TeslaCamMerge#introduction)
 * [How it Works](https://github.com/ppamidimarri/TeslaCamMerge#how-it-works)
 * [Hardware Needed](https://github.com/ppamidimarri/TeslaCamMerge#hardware-needed)
 * [Instructions](https://github.com/ppamidimarri/TeslaCamMerge#instructions)
 * [Example Videos](https://github.com/ppamidimarri/TeslaCamMerge#example-videos)
 * [Screenshots](https://github.com/ppamidimarri/TeslaCamMerge#screenshots)
+
+## Prelude
+
+Years and years later, here are some fun updates. First, I can use Intel VAAPI hardware encoding now. Set the **FFMPEG_ENCODER_PREFERENCE** option in the TCMConstants.py file to "intel" and watch the
+magic happen! Verify the good times with intel_gpu_top.
 
 ## Introduction
 
@@ -169,7 +175,7 @@ If you do not need the ability to upload your videos to the cloud, you can safel
 2. `git clone https://github.com/ppamidimarri/TeslaCamMerge`
 3. `cd TeslaCamMerge`
 4. `chmod +x *.py`
-5. Modify the paths and other entries in `TCMConstants.py` to match your structure from all the previous steps
+5. Modify the paths and other entries in `TCMConstants.py` to match your structure from all the previous steps.. **Also set the command for the encoding method to "intel" in FFMPEG_ENCODER_PREFERENCE, if desired.**
 6. Once all paths are correct, run `python3 CreateServiceFiles.py`, then verify that the service files have been updated with your information (e.g. verify that `tcm-mergeTeslaCam.service` has the correct Unix user ID and correct path to `MergeTeslaCam.py`)
 7. `sudo cp *.service /lib/systemd/system`
 8. `sudo systemctl daemon-reload`
