@@ -112,6 +112,11 @@ EVENT_TIMESTAMP_FORMAT = '%b %-d\, %-I\:%M\:%S %p'		# For event timestamp with s
 BAD_VIDEOS_FILENAME = 'bad_videos.txt'
 BAD_SIZES_FILENAME = 'bad_sizes.txt'
 
+# What encoding hardware to use, since my autodetect routine failed miserably.
+# Options: 'auto', 'intel', 'nvidia', 'amd', 'software', or 'bullwinkle' because all the script sees is 'intel' or not 'intel.' Do not try 'hotdog'.
+# You can try hotdog. Hotdog is not intel.
+FFMPEG_ENCODER_PREFERENCE = 'intel'
+
 ### Do not modify anything below this line ###
 
 # Characteristics of filenames output by TeslaCam
