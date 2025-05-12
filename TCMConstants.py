@@ -14,6 +14,10 @@ PROJECT_USER = 'pavan'		# User ID for the application to run as. This user needs
 UPLOAD_LOCAL_PATH = '/home/pavan/Footage/Upload/'	# Any files placed in this directory will be uploaded to Google Drive
 SSD_MOUNT_POINT = '/home/pavan'				# Mount point for the SSD
 
+# What encoding hardware to use, since my autodetect routine failed miserably.
+# Options: 'auto', 'intel', 'nvidia', 'amd', 'software', or 'bullwinkle' because all the script sees is 'intel' or not 'intel.' Do not try 'hotdog'.
+# You can try hotdog. Hotdog is not intel.
+FFMPEG_ENCODER_PREFERENCE = 'intel'
 # Folder names for different types of videos
 FAST_FOLDER = 'Fast'
 FULL_FOLDER = 'Full'
@@ -111,11 +115,6 @@ EVENT_TIMESTAMP_FORMAT = '%b %-d\, %-I\:%M\:%S %p'		# For event timestamp with s
 # drastically different (i.e. outside the range specified below in SIZE_RANGE)
 BAD_VIDEOS_FILENAME = 'bad_videos.txt'
 BAD_SIZES_FILENAME = 'bad_sizes.txt'
-
-# What encoding hardware to use, since my autodetect routine failed miserably.
-# Options: 'auto', 'intel', 'nvidia', 'amd', 'software', or 'bullwinkle' because all the script sees is 'intel' or not 'intel.' Do not try 'hotdog'.
-# You can try hotdog. Hotdog is not intel.
-FFMPEG_ENCODER_PREFERENCE = 'intel'
 
 ### Do not modify anything below this line ###
 
