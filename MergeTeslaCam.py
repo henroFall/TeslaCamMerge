@@ -14,6 +14,11 @@ import TCMConstants
 import re
 import logging
 import json
+import multiprocessing
+
+# Dynamically calculate number of threads for ffmpeg
+total_cores = multiprocessing.cpu_count()
+ffmpeg_threads = max(1, (total_cores // 2) - 1)
 
 # ffmpeg commands and filters
 if TCMConstants.FFMPEG_ENCODER_PREFERENCE.lower() == 'intel':
@@ -33,14 +38,13 @@ else:
 	ffmpeg_hwupload_full = ''
 	ffmpeg_hwupload_fast = ''
 ffmpeg_end_full = '\':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-text_h,format=nv12,hwupload" -c:v h264_vaapi -movflags +faststart -threads 0'
-# was working mostly ffmpeg_end_fast = '-filter_complex "setpts=0.09*PTS,hwdownload,format=bgr0,format=nv12,hwupload" -c:v h264_vaapi -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
-ffmpeg_end_fast = '-filter_complex "hwdownload,format=bgr0,setpts=0.09*PTS,format=nv12,hwupload" -c:v h264_vaapi -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
-
-# ffmpeg_base = f'{TCMConstants.FFMPEG_PATH} -hide_banner -loglevel error -timelimit {TCMConstants.FFMPEG_TIMELIMIT}'
+ffmpeg_end_fast = (
+	f'-vf "setpts=0.09*PTS" '
+	f'-c:v libx264 -crf 28 -profile:v main -tune fastdecode '
+	f'-movflags +faststart -threads {ffmpeg_threads}'
+)
 ffmpeg_mid_full = f'-filter_complex "[1:v]scale=w={TCMConstants.FRONT_WIDTH}:h={TCMConstants.FRONT_HEIGHT}[top];[0:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[right];[3:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[back];[2:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[left];[left][back][right]hstack=inputs=3[bottom];[top][bottom]vstack=inputs=2[full];[full]drawtext=text=\''
 ffmpeg_mid2_full = '\':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2[labeled];[labeled]drawtext=text=\''
-# ffmpeg_end_full = '\':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-text_h" -movflags +faststart -threads 0'
-# ffmpeg_end_fast = '-vf "setpts=0.09*PTS" -c:v libx264 -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
 ffmpeg_error_regex = '(.*): Invalid data found when processing input'
 ffmpeg_error_pattern = re.compile(ffmpeg_error_regex)
 

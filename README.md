@@ -15,6 +15,8 @@
 Years and years later, here are some fun updates. First, I can use Intel VAAPI hardware encoding now. Set the **FFMPEG_ENCODER_PREFERENCE** option in the TCMConstants.py file to "intel" and watch the
 magic happen! Verify the good times with intel_gpu_top.
 
+**NOTE:** FFMPEG just can't do the fast preview encoding with an Intel GPU. I couldn't get a good command line going. So, you will see the full-length clips are processed with hardware, but the fast clips are processed with software. 
+
 ## Introduction
 
 Tesla's in-built dashcam (TeslaCam) creates four separate video files, one each from the front, left, right and rear cameras as of software version 10.0. I built this project to do the following:
