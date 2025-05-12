@@ -33,7 +33,8 @@ else:
 	ffmpeg_hwupload_full = ''
 	ffmpeg_hwupload_fast = ''
 ffmpeg_end_full = '\':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-text_h,format=nv12,hwupload" -c:v h264_vaapi -movflags +faststart -threads 0'
-ffmpeg_end_fast = '-filter_complex "setpts=0.09*PTS,format=nv12,hwupload" -c:v h264_vaapi -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
+# was working mostly ffmpeg_end_fast = '-filter_complex "setpts=0.09*PTS,hwdownload,format=bgr0,format=nv12,hwupload" -c:v h264_vaapi -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
+ffmpeg_end_fast = '-filter_complex "hwdownload,format=bgr0,setpts=0.09*PTS,format=nv12,hwupload" -c:v h264_vaapi -crf 28 -profile:v main -tune fastdecode -movflags +faststart -threads 0'
 
 # ffmpeg_base = f'{TCMConstants.FFMPEG_PATH} -hide_banner -loglevel error -timelimit {TCMConstants.FFMPEG_TIMELIMIT}'
 ffmpeg_mid_full = f'-filter_complex "[1:v]scale=w={TCMConstants.FRONT_WIDTH}:h={TCMConstants.FRONT_HEIGHT}[top];[0:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[right];[3:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[back];[2:v]scale=w={TCMConstants.REST_WIDTH}:h={TCMConstants.REST_HEIGHT}[left];[left][back][right]hstack=inputs=3[bottom];[top][bottom]vstack=inputs=2[full];[full]drawtext=text=\''
@@ -108,14 +109,17 @@ def process_stamp(stamp, folder):
 				logger.error(f"Missing expected input file: {f}")
 			else:
 				logger.debug(f"Found input file: {f} ({os.path.getsize(f)} bytes)")
-
 		if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"):
 			run_ffmpeg_command("Merge", folder, stamp, 0)
 		else:
 			logger.debug(f"Full file exists for stamp {stamp}")
-		if TCMConstants.check_file_for_read(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"):
-			if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FAST_FOLDER}/{stamp}-{TCMConstants.FAST_TEXT}"):
-				run_ffmpeg_command("Fast preview", folder, stamp, 1)
+		full_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"
+		if TCMConstants.check_file_for_read(full_file):
+			if file_has_moov_atom(full_file):
+				if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FAST_FOLDER}/{stamp}-{TCMConstants.FAST_TEXT}"):
+					run_ffmpeg_command("Fast preview", folder, stamp, 1)
+				else:
+					logger.warning(f"Skipping fast preview: {full_file} is missing moov atom or is not decodable.")
 			else:
 				logger.debug(f"Fast file exists for stamp {stamp} at {folder}")
 		else:
@@ -287,6 +291,17 @@ def format_timestamp(stamp, seconds=False):
 		return timestamp.strftime(TCMConstants.EVENT_TIMESTAMP_FORMAT)
 	else:
 		return timestamp.strftime(TCMConstants.WATERMARK_TIMESTAMP_FORMAT)
+
+def file_has_moov_atom(path):
+	try:
+		result = subprocess.run(
+			[TCMConstants.FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", "-show_entries",
+			"format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path],
+			stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		return result.returncode == 0 and result.stdout.strip()
+	except Exception as e:
+		logger.warning(f"ffprobe check failed for {path}: {e}")
+		return False
 
 if __name__ == '__main__':
 	main()

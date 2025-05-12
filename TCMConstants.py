@@ -103,6 +103,7 @@ DF_PATH = '/bin/df'								# Verify with: which df
 CUTYCAPT_PATH = '/usr/bin/cutycapt --zoom-factor=1.5'				# Verify with: which cutycapt
 SYSTEMCTL_PATH = "/bin/systemctl"						# Verify with: which systemctl
 XVFB_RUN_PATH = '/usr/bin/xvfb-run'						# Verify with: which xvfb-run
+FFPROBE_PATH = '/usr/bin/ffprobe'						# Verify with: which ffprobe
 
 # Video watermark timestamp format (see Python strftime reference)
 WATERMARK_TIMESTAMP_FORMAT = '%b %-d\, %-I\:%M %p'		# For file timestamp, without seconds
