@@ -5,6 +5,8 @@
 #	- video files under "VIDEO_PATHS"
 # that have a name with a timestamp more than "DAYS_TO_KEEP" days old
 # Files and directories who names don't match this format are left alone
+# DAYS_TO_KEEP can be overridden on a case-by-case with parameters seen
+# in TCMConstants.py.
 
 import os
 import time
@@ -33,18 +35,32 @@ def main():
 			setup_video_paths(f"{car}/")
 	else:
 		setup_video_paths("")
-
 	while True:
+		logger.debug("Entered main loop")
 		for share in TCMConstants.SHARE_PATHS:
 			for folder in TCMConstants.FOOTAGE_FOLDERS:
+				logger.debug(f"Scanning share+folder: {share}{folder}")
+				full_path = f"{share}{folder}"
+				if not os.path.exists(full_path):
+					logger.warning(f"Missing share path: {full_path}")
 				for directory in next(os.walk(f"{share}{folder}"))[1]:
+					logger.debug(f"Scanning: {share}{folder}")
+					logger.debug(f"Found directory: {directory}")
 					if os.listdir(f"{share}{folder}/{directory}"):
 						logger.debug(f"Directory {share}{folder}/{directory} not empty, skipping")
 					else:
 						remove_empty_old_directory(f"{share}{folder}/", directory)
 
 		for path in VIDEO_PATHS:
+			logger.debug(f"Looking in VIDEO_PATH: {path}")
+		if not os.path.exists(path):
+			logger.warning(f"VIDEO_PATH missing: {path}")
 			for file in os.listdir(path):
+				logger.debug(f"Found file: {file}")
+				stamp = extract_stamp(file)
+				logger.debug(f"Extracted stamp: {stamp}")
+				if is_old_enough(stamp, path):
+					logger.debug(f"File is old enough: {file}")
 				remove_old_file(path, file)
 
 		if datetime.datetime.now().minute in TCMConstants.STATS_FREQUENCY:
@@ -72,7 +88,7 @@ def have_required_permissions():
 ### Loop functions ###
 
 def remove_empty_old_directory(path, name):
-	if is_old_enough(name):
+	if is_old_enough(name, path):
 		logger.info(f"Removing empty directory: {path}{name}")
 		try:
 			os.rmdir(f"{path}{name}")
@@ -82,7 +98,7 @@ def remove_empty_old_directory(path, name):
 		logger.debug(f"Directory {path}{name} is not ready for deletion, skipping")
 
 def remove_old_file(path, file):
-	if is_old_enough(extract_stamp(file)):
+	if is_old_enough(extract_stamp(file), path):
 		logger.info(f"Removing old file: {path}/{file}")
 		try:
 			os.remove(f"{path}/{file}")
@@ -105,17 +121,15 @@ def extract_stamp(file):
 		logger.debug(f"No valid stamp found for file: {file}")
 		return None
 
-def is_old_enough(stamp_in_name):
-	try:
-		stamp = datetime.datetime.strptime(stamp_in_name, TCMConstants.FILENAME_TIMESTAMP_FORMAT)
-		age = datetime.datetime.now() - stamp
-		if age.days > TCMConstants.DAYS_TO_KEEP:
-			return True
-		else:
-			return False
-	except:
-		logger.debug(f"Unrecognized name: {stamp_in_name}, skipping")
-		return False
+def is_old_enough(stamp_in_name, path=None):
+    try:
+        stamp = datetime.datetime.strptime(stamp_in_name, TCMConstants.FILENAME_TIMESTAMP_FORMAT)
+        age = datetime.datetime.now() - stamp
+        days_to_keep = get_days_to_keep(path) if path else TCMConstants.DAYS_TO_KEEP
+        return age.days > days_to_keep
+    except:
+        logger.debug(f"Unrecognized name: {stamp_in_name}, skipping")
+        return False
 
 if __name__ == '__main__':
 	main()
