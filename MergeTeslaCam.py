@@ -102,39 +102,48 @@ def loop_car(car_path):
 						process_stamp(stamp, f"{car_path}{folder}")
 
 def process_stamp(stamp, folder):
-		logger.debug(f"Processing stamp {stamp} in {folder}")
-		if file_is_bad_fastpreview(stamp, folder):
-			logger.debug(f"Skipping fast preview for bad file {stamp} in {folder}")
-			return
-		if stamp_is_all_ready(stamp, folder):
-				logger.debug(f"Stamp {stamp} in {folder} is ready to go")
-				# Confirm all input files exist before calling ffmpeg
-				front_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.FRONT_TEXT}"
-				left_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.LEFT_TEXT}"
-				right_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.RIGHT_TEXT}"
-				back_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.BACK_TEXT}"
-				for f in [right_file, front_file, left_file, back_file]:
-						if not os.path.exists(f):
-								logger.error(f"Missing expected input file: {f}")
-						else:
-								logger.debug(f"Found input file: {f} ({os.path.getsize(f)} bytes)")
-				if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"):
-						run_ffmpeg_command("Merge", folder, stamp, 0)
-				else:
-						logger.debug(f"Full file exists for stamp {stamp}")
-				full_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"
-				if TCMConstants.check_file_for_read(full_file):
-						if file_has_moov_atom(full_file):
-								if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FAST_FOLDER}/{stamp}-{TCMConstants.FAST_TEXT}"):
-										run_ffmpeg_command("Fast preview", folder, stamp, 1)
-								else:
-										logger.warning(f"Skipping fast preview: {full_file} is missing moov atom or is not decodable.")
-						else:
-								logger.debug(f"Fast file exists for stamp {stamp} at {folder}")
-				else:
-						logger.warning(f"Full file {TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT} not ready for read, postponing fast preview")
+	logger.debug(f"Processing stamp {stamp} in {folder}")
+	if file_is_bad_fastpreview(stamp, folder):
+		logger.debug(f"Skipping fast preview for bad file {stamp} in {folder}")
+		return
+
+	if stamp_is_all_ready(stamp, folder):
+		logger.debug(f"Stamp {stamp} in {folder} is ready to go")
+		# Confirm all input files exist before calling ffmpeg
+		front_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.FRONT_TEXT}"
+		left_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.LEFT_TEXT}"
+		right_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.RIGHT_TEXT}"
+		back_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.BACK_TEXT}"
+		for f in [right_file, front_file, left_file, back_file]:
+			if not os.path.exists(f):
+				logger.error(f"Missing expected input file: {f}")
+			else:
+				logger.debug(f"Found input file: {f} ({os.path.getsize(f)} bytes)")
+
+		if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"):
+			run_ffmpeg_command("Merge", folder, stamp, 0)
 		else:
-				logger.debug(f"Stamp {stamp} not yet ready in {folder}")
+			logger.debug(f"Full file exists for stamp {stamp}")
+
+		full_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT}"
+		if TCMConstants.check_file_for_read(full_file):
+			if file_is_bad_fastpreview(stamp, folder):
+				logger.debug(f"Skipping fast preview because it's marked bad: {stamp}")
+				return
+
+			if not file_has_moov_atom(full_file):
+				logger.warning(f"Skipping fast preview: {full_file} is missing moov atom or is not decodable.")
+				mark_bad_fastpreview(folder, f"{stamp}-{TCMConstants.FULL_TEXT}")
+				return
+
+			if TCMConstants.check_file_for_write(f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FAST_FOLDER}/{stamp}-{TCMConstants.FAST_TEXT}"):
+				run_ffmpeg_command("Fast preview", folder, stamp, 1)
+			else:
+				logger.debug(f"Fast file already exists or isn't writable for stamp {stamp} at {folder}")
+		else:
+			logger.warning(f"Full file {TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.FULL_FOLDER}/{stamp}-{TCMConstants.FULL_TEXT} not ready for read, postponing fast preview")
+	else:
+		logger.debug(f"Stamp {stamp} not yet ready in {folder}")
 
 def stamp_is_all_ready(stamp, folder):
 		front_file = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{stamp}-{TCMConstants.FRONT_TEXT}"
@@ -162,23 +171,22 @@ def file_is_bad(stamp, folder):
 				return False
 
 def mark_bad_fastpreview(folder, name):
-	file_path = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{TCMConstants.BAD_FASTPREVIEW_FILENAME}"
+	path = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{TCMConstants.BAD_FASTPREVIEW_FILENAME}"
 	add_string_to_sorted_file(
-		file_path,
+		path,
 		name,
 		f"{name}\n",
-		f"Marking bad fast preview: {name}",
-		logger.WARNING
+		f"Logging {name} to {TCMConstants.BAD_FASTPREVIEW_FILENAME} to skip on subsequent runs.",
+		logging.DEBUG
 	)
-	
+
 def file_is_bad_fastpreview(stamp, folder):
-	file_path = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{TCMConstants.BAD_FASTPREVIEW_FILENAME}"
-	if not os.path.isfile(file_path):
+	badfile = f"{stamp}-{TCMConstants.FULL_TEXT}"
+	path = f"{TCMConstants.FOOTAGE_PATH}{folder}/{TCMConstants.RAW_FOLDER}/{TCMConstants.BAD_FASTPREVIEW_FILENAME}"
+	if not os.path.isfile(path):
 		return False
-	with open(file_path, "r") as f:
-		bad_names = f.readlines()
-		full_name = f"{stamp}-{TCMConstants.FULL_TEXT}\n"
-		return full_name in bad_names
+	with open(path, "r") as f:
+		return badfile + "\n" in f.readlines()
 
 def file_sizes_in_same_range(folder, stamp, front_file, left_file, right_file, back_file):
 		front_size = os.path.getsize(front_file)
