@@ -32,7 +32,7 @@ REST_HEIGHT = FRONT_HEIGHT/3
 # TeslaCam input folders. These are the root folders in the
 # TeslaCam share (e.g. 'SavedClips', 'SentryClips') in which timestamp
 # folders are placed by TeslaCam
-FOOTAGE_FOLDERS = ['SavedClips', 'SentryClips']
+FOOTAGE_FOLDERS = ['SavedClips', 'SentryClips', 'RecentClips']
 
 # Root location of all footage used and created by the application. MUST include trailing /.
 FOOTAGE_PATH = '/home/pavan/Footage/'
@@ -63,7 +63,22 @@ UPLOAD_REMOTE_PATH = 'gdrive:/TeslaCam'
 # RAW_PATH locations are automatically deleted by removeOld.service
 # To keep videos longer, move them to any other directory, or move to
 # the UPLOAD_PATH so they are automatically backed up to cloud storage.
+# Overrides are allowed as shown below. Uncomment any line and specifiy 
+# a value to apply it. Leave the line commented to accept the global
+# value for DAYS_TO_KEEP.
 DAYS_TO_KEEP = 30
+
+RETENTION_OVERRIDES = {
+#    ('SentryClips', 'Raw'): 10,
+#    ('SentryClips', 'Full'): 15,
+#    ('SentryClips', 'Fast'): 5,
+	('RecentClips', 'Raw'): 3,
+	('RecentClips', 'Full'): 14,
+	('RecentClips', 'Fast'): 14,
+	('SavedClips', 'Raw'): 90,
+	('SavedClips', 'Full'): 90,
+	('SavedClips', 'Fast'): 90,
+}
 
 # Filename for an html file with statistics about TeslaCamMerge.
 # If STATS_FILENAME is not empty, the application will generate a
@@ -116,6 +131,13 @@ EVENT_TIMESTAMP_FORMAT = '%b %-d\, %-I\:%M\:%S %p'		# For event timestamp with s
 # drastically different (i.e. outside the range specified below in SIZE_RANGE)
 BAD_VIDEOS_FILENAME = 'bad_videos.txt'
 BAD_SIZES_FILENAME = 'bad_sizes.txt'
+BAD_FASTPREVIEW_FILENAME = "bad_fastpreview.txt"
+
+# Options: 'auto', 'intel', 'nvidia', 'amd', 'software', or 'bullwinkle' because all the 
+# script sees today is 'intel' or not 'intel.' Do not try 'hotdog' it will only be not-hotdog.
+# intel will attempt to use an intel GPU. Anything else will use CPU encoding. 
+FFMPEG_ENCODER_PREFERENCE = 'intel'
+
 
 ### Do not modify anything below this line ###
 
@@ -132,119 +154,120 @@ FILENAME_PATTERN = re.compile(FILENAME_REGEX)
 EVENT_JSON = 'event.json'
 
 ### Characteristics of event.json files output by TeslaCam
-EVENT_DURATION = 600		# Maximum duration in seconds between the timestamp in event.json and the timestamp in the filename
+EVENT_DURATION = 600            # Maximum duration in seconds between the timestamp in event.json and the timestamp in the filename
 EVENT_REASON = {'sentry_aware_object_detection' : 'Sentry object detected',
-	'sentry_aware_accel_' : 'Sentry detected aceeleration',
-	'sentry_' : 'Sentry triggered',
-	'user_interaction_honk' : 'Honked',
-	'user_interaction_dashcam_panel_save' : 'Saved from panel',
-	'user_interaction_dashcam_icon_tapped' : 'Saved from icon',
-	'user_interaction_dashcam_launcher_action_tapped' : 'Saved from launcher',
-	'user_interaction_' : 'User interaction'}
+		'sentry_aware_accel_' : 'Sentry detected aceeleration',
+		'sentry_' : 'Sentry triggered',
+		'user_interaction_honk' : 'Honked',
+		'user_interaction_dashcam_panel_save' : 'Saved from panel',
+		'user_interaction_dashcam_icon_tapped' : 'Saved from icon',
+		'user_interaction_dashcam_launcher_action_tapped' : 'Saved from launcher',
+		'user_interaction_' : 'User interaction'}
 
 EVENT_CAMERA = {'0' : 'front camera',
-	'1' : 'fisheye camera',
-	'2' : 'narrow camera',
-	'3' : 'left front camera',
-	'4' : 'right front camera',
-	'5' : 'left rear camera',
-	'6' : 'right rear camera',
-	'7' : 'rear camera',
-	'8' : 'cabin camera'}
+		'1' : 'fisheye camera',
+		'2' : 'narrow camera',
+		'3' : 'left front camera',
+		'4' : 'right front camera',
+		'5' : 'left rear camera',
+		'6' : 'right rear camera',
+		'7' : 'rear camera',
+		'8' : 'cabin camera'}
 
 # Application management constants
-SLEEP_DURATION = 60		# Seconds between looping in main tasks
-SPECIAL_EXIT_CODE = 115		# Exit code used by the app, has to be non-zero for systemctl to auto-restart crashed services
-SIZE_RANGE = 0.99		# Maximum size difference in percentage between video files, timsestamps with bigger size differences are not merged
-FFMPEG_TIMELIMIT = 9000		# CPU time limit in seconds for FFMPEG commands to run
+SLEEP_DURATION = 60             # Seconds between looping in main tasks
+SPECIAL_EXIT_CODE = 115         # Exit code used by the app, has to be non-zero for systemctl to auto-restart crashed services
+SIZE_RANGE = 0.99               # Maximum size difference in percentage between video files, timsestamps with bigger size differences are not merged
+FFMPEG_TIMELIMIT = 9000         # CPU time limit in seconds for FFMPEG commands to run
 
 # Common functions
 
 def check_permissions(path, test_write):
-	logger = logging.getLogger(get_basename())
-	if os.access(path, os.F_OK):
-		logger.debug("Path {0} exists".format(path))
-		if os.access(path, os.R_OK):
-			logger.debug("Can read at path {0}".format(path))
-			if test_write:
-				if os.access(path, os.W_OK):
-					logger.debug("Can write to path {0}".format(path))
-					return True
+		logger = logging.getLogger(get_basename())
+		if os.access(path, os.F_OK):
+				logger.debug("Path {0} exists".format(path))
+				if os.access(path, os.R_OK):
+						logger.debug("Can read at path {0}".format(path))
+						if test_write:
+								if os.access(path, os.W_OK):
+										logger.debug("Can write to path {0}".format(path))
+										return True
+								else:
+										logger.error("Cannot write to path {0}".format(path))
+										return False
+						else:
+								return True
 				else:
-					logger.error("Cannot write to path {0}".format(path))
-					return False
-			else:
-				return True
+						logger.error("Cannot read at path {0}".format(path))
+						return False
 		else:
-			logger.error("Cannot read at path {0}".format(path))
-			return False
-	else:
-		logger.error("Path {0} does not exist".format(path))
-		return False
+				logger.error("Path {0} does not exist".format(path))
+				return False
 
 def check_file_for_read(file):
-	if os.access(file, os.F_OK):
-		return not file_being_written(file)
-	else:
-		logging.getLogger(get_basename()).debug(
-			"File {0} does not exist".format(file))
-		return False
+		if os.access(file, os.F_OK):
+				return not file_being_written(file)
+		else:
+				logging.getLogger(get_basename()).debug(
+						"File {0} does not exist".format(file))
+				return False
 
 def file_being_written(file):
-	logger = logging.getLogger(get_basename())
-	completed = subprocess.run("{0} {1}".format(LSOF_PATH, file), shell=True,
-		stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	if completed.stderr:
-		logger.error("Error running lsof on file {0}, stdout: {1}, stderr: {2}".format(
-			file, completed.stdout, completed.stderr))
-		return True # abundance of caution: if lsof won't run properly, say file is not ready for read
-	else:
-		if completed.stdout:
-			logger.debug("File {0} in use, stdout: {1}, stderr: {2}".format(
-				file, completed.stdout, completed.stderr))
-			return True
+		logger = logging.getLogger(get_basename())
+		completed = subprocess.run("{0} {1}".format(LSOF_PATH, file), shell=True,
+				stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		if completed.stderr:
+				logger.error("Error running lsof on file {0}, stdout: {1}, stderr: {2}".format(
+						file, completed.stdout, completed.stderr))
+				return True # abundance of caution: if lsof won't run properly, say file is not ready for read
 		else:
-			return False
+				if completed.stdout:
+						logger.debug("File {0} in use, stdout: {1}, stderr: {2}".format(
+								file, completed.stdout, completed.stderr))
+						return True
+				else:
+						return False
 
 def check_file_for_write(file):
-	if os.access(file, os.F_OK):
-		logging.getLogger(get_basename()).debug("File {0} exists".format(file))
-		return False
-	else:
-		return True
+		if os.access(file, os.F_OK):
+				logging.getLogger(get_basename()).debug("File {0} exists".format(file))
+				return False
+		else:
+				return True
 
 def exit_gracefully(signum, frame):
-	logging.getLogger(get_basename()).info("Received signal {0}, exiting".format(signum))
-	exit(signum)
+		logging.getLogger(get_basename()).info("Received signal {0}, exiting".format(signum))
+		exit(signum)
 
 def get_logger():
-	basename = get_basename()
-	logger = logging.getLogger(basename)
-	logger.setLevel(LOG_LEVEL)
-	fh = logging.handlers.TimedRotatingFileHandler(
-		LOG_PATH + basename + LOG_EXTENSION,
-		when=LOG_WHEN, interval=LOG_INTERVAL,
-		backupCount=LOG_BACKUP_COUNT)
-	fh.setLevel(LOG_LEVEL)
-	formatter = logging.Formatter(LOG_FORMAT)
-	fh.setFormatter(formatter)
-	logger.addHandler(fh)
-	logger.info("Starting up")
-	signal.signal(signal.SIGINT, exit_gracefully)
-	signal.signal(signal.SIGTERM, exit_gracefully)
-	return logger
+		basename = get_basename()
+		logger = logging.getLogger(basename)
+		logger.setLevel(LOG_LEVEL)
+		fh = logging.handlers.TimedRotatingFileHandler(
+				LOG_PATH + basename + LOG_EXTENSION,
+				when=LOG_WHEN, interval=LOG_INTERVAL,
+				backupCount=LOG_BACKUP_COUNT)
+		fh.setLevel(LOG_LEVEL)
+		formatter = logging.Formatter(LOG_FORMAT)
+		fh.setFormatter(formatter)
+		logger.addHandler(fh)
+		logger.info("Starting up")
+		signal.signal(signal.SIGINT, exit_gracefully)
+		signal.signal(signal.SIGTERM, exit_gracefully)
+		return logger
 
 def get_basename():
-	return os.path.splitext(os.path.basename(sys.argv[0]))[0]
+		return os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
 def convert_file_size(size):
-	if size <= 1024:
-		return "{0:-6d}B".format(size)
-	elif size <= 1024*1024:
-		return "{0:-6.1f}K".format(size/1024)
-	elif size <= 1024*1024*1024:
-		return "{0:-6.1f}M".format(size/(1024*1024))
-	elif size <= 1024*1024*1024*1024:
-		return "{0:-6.1f}G".format(size/(1024*1024*1024))
-	else:
-		return "{0:-6.1f}T".format(size/(1024*1024*1024*1024))
+		if size <= 1024:
+				return "{0:-6d}B".format(size)
+		elif size <= 1024*1024:
+				return "{0:-6.1f}K".format(size/1024)
+		elif size <= 1024*1024*1024:
+				return "{0:-6.1f}M".format(size/(1024*1024))
+		elif size <= 1024*1024*1024*1024:
+				return "{0:-6.1f}G".format(size/(1024*1024*1024))
+		else:
+				return "{0:-6.1f}T".format(size/(1024*1024*1024*1024))
+
