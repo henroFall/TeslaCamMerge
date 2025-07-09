@@ -55,13 +55,13 @@ def main():
 			logger.debug(f"Looking in VIDEO_PATH: {path}")
 		if not os.path.exists(path):
 			logger.warning(f"VIDEO_PATH missing: {path}")
-			for file in os.listdir(path):
-				logger.debug(f"Found file: {file}")
-				stamp = extract_stamp(file)
-				logger.debug(f"Extracted stamp: {stamp}")
-				if is_old_enough(stamp, path):
-					logger.debug(f"File is old enough: {file}")
-				remove_old_file(path, file)
+		for file in os.listdir(path):
+			logger.debug(f"Found file: {file}")
+			stamp = extract_stamp(file)
+			logger.debug(f"Extracted stamp: {stamp}")
+			if is_old_enough(stamp, path):
+				logger.debug(f"File is old enough: {file}")
+			remove_old_file(path, file)
 
 		if datetime.datetime.now().minute in TCMConstants.STATS_FREQUENCY:
 			Stats.generate_stats_image()
@@ -122,14 +122,14 @@ def extract_stamp(file):
 		return None
 
 def is_old_enough(stamp_in_name, path=None):
-    try:
-        stamp = datetime.datetime.strptime(stamp_in_name, TCMConstants.FILENAME_TIMESTAMP_FORMAT)
-        age = datetime.datetime.now() - stamp
-        days_to_keep = get_days_to_keep(path) if path else TCMConstants.DAYS_TO_KEEP
-        return age.days > days_to_keep
-    except:
-        logger.debug(f"Unrecognized name: {stamp_in_name}, skipping")
-        return False
+	try:
+		stamp = datetime.datetime.strptime(stamp_in_name, TCMConstants.FILENAME_TIMESTAMP_FORMAT)
+		age = datetime.datetime.now() - stamp
+		days_to_keep = get_days_to_keep(path) if path else TCMConstants.DAYS_TO_KEEP
+		return age.days > days_to_keep
+	except:
+		logger.debug(f"Unrecognized name: {stamp_in_name}, skipping")
+		return False
 
 if __name__ == '__main__':
 	main()
