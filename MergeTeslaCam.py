@@ -96,7 +96,7 @@ def loop_car(car_path):
 						try:
 								stamp, camera = file.rsplit("-", 1)
 						except ValueError:
-								if TCMConstants.EVENT_JSON not in file and file != TCMConstants.BAD_VIDEOS_FILENAME and file != TCMConstants.BAD_SIZES_FILENAME:
+								if TCMConstants.EVENT_JSON not in file and file != TCMConstants.BAD_VIDEOS_FILENAME and file != TCMConstants.BAD_SIZES_FILENAME and file != TCMConstants.BAD_FASTPREVIEW_FILENAME:
 										logger.warning(f"Unrecognized filename: {file}")
 								continue
 						process_stamp(stamp, f"{car_path}{folder}")
